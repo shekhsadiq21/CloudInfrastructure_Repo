@@ -1,0 +1,36 @@
+# Saves the outputs of a remote state terraform infrastructure as pipeline variables
+parameters:
+  environmentServiceName: ''
+  remoteStateContainerName: ''
+  remoteStateFileName: ''
+  remoteStateResourceGroup: ''
+  remoteStateServiceConnection: ''
+  remoteStateStorageName: ''
+  terraformWorkingDirectory: ''
+
+steps:
+  
+  - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+    displayName: 'Install Latest Terraform Version'
+    inputs:
+      terraformVersion: 'latest'
+          
+  - task: TerraformCLI@0
+    displayName: 'Terraform Initialize RemoteState from Azure commonResources'
+    inputs:
+      command: 'init'
+      workingDirectory: '${{ parameters.terraformWorkingDirectory }}'
+      backendType: 'azurerm'
+      backendServiceArm: '${{ parameters.remoteStateServiceConnection }}'
+      backendAzureRmResourceGroupName: '${{ parameters.remoteStateResourceGroup }}'
+      backendAzureRmStorageAccountName: '${{ parameters.remoteStateStorageName }}'
+      backendAzureRmContainerName: '${{ parameters.remoteStateContainerName }}'
+      backendAzureRmKey: '${{ parameters.remoteStateFileName }}'
+      commandOptions: '-reconfigure'
+
+  - task: TerraformCLI@0
+    displayName: 'Set Pipeline Variables from Terraform Outputs'
+    inputs:
+      command: 'output'
+      workingDirectory: '${{ parameters.terraformWorkingDirectory }}'
+      environmentServiceName: '${{ parameters.environmentServiceName }}'

@@ -1,0 +1,50 @@
+# Configures a new environment after (blank) infra has been provisioned
+
+parameters:
+  allocationFunctionResourceGroup: ''
+  azureServiceConnection: ''
+  caCertificatePath: ''
+  certificateCreationScriptDirectory: ''
+  certificateName: ''
+  dpsName: ''
+  enrollmentId: ''
+  environmentName: ''
+  functionAppName: ''
+  functionName: ''
+  iotHubName: ''
+  keyVaultName: ''
+  resourceGroup: ''
+  verificationDirectory: ''
+  internalRequestCertificateName: ''
+
+
+stages:
+  - stage: setup_environment
+    displayName: 'Setup Environment ${{ parameters.environmentName }}'
+    pool:
+      vmImage: 'ubuntu-latest'
+    jobs:  
+      # Create the root CA certificate in Key Vault
+      - template: '/.azdo/jobs/create-signing-certs.yaml'
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          certificateCreationScriptDirectory: '${{ parameters.certificateCreationScriptDirectory }}' 
+          certificateName: '${{ parameters.certificateName }}'
+          internalRequestCertificateName: '${{ parameters.internalRequestCertificateName }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'
+
+      # Setup a new DPS enrollment group
+      - template: '/.azdo/jobs/setup-enrollment-group.yaml'
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          allocationFunctionResourceGroup: '${{ parameters.allocationFunctionResourceGroup }}'
+          caCertificatePath: '${{ parameters.caCertificatePath }}'
+          certificateName: '${{ parameters.certificateName }}'
+          dpsName: '${{ parameters.dpsName }}'
+          enrollmentId: '${{ parameters.enrollmentId }}'
+          functionAppName: '${{ parameters.functionAppName }}'
+          functionName: '${{ parameters.functionName }}'
+          iotHubName: '${{ parameters.iotHubName }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'
+          resourceGroup: '${{ parameters.resourceGroup }}'
+          verificationDirectory: '${{ parameters.verificationDirectory }}'

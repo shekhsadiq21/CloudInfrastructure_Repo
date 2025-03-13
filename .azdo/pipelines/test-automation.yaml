@@ -1,0 +1,35 @@
+# Runs APIM automated tests
+# Runs after infrastructure-dev pipeline if APIM files changes
+
+# resources:
+#   pipelines:
+#   - pipeline: infrastructure-dev
+#     source: CloudInfrastructure-Development
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - src/PublicIngress/APIM
+
+name: 0.0.$(rev:r) 
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: AZURE_SERVICE_CONNECTION
+    value: 'wen-dev-sp'
+  - name: 'KEYVAULT_NAME'
+    value: 'wcp-dev-wus2-sh-kv'
+    
+stages:
+   # Run APIM tests
+  - template: /.azdo/stages/apim-test-automation.yaml
+    parameters:
+      azureServiceConnection: '${{ variables.AZURE_SERVICE_CONNECTION }}'
+      keyVaultName: '${{ variables.KEYVAULT_NAME }} '
+
+

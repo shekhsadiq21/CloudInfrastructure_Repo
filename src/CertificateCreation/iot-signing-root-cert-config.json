@@ -1,0 +1,28 @@
+{
+  "policy": {
+    "key_props": {
+      "exportable": true,
+      "kty": "RSA",
+      "key_size": 4096,
+      "reuse_key": false
+    },
+    "secret_props": {
+      "contentType": "application/x-pem-file"
+    },
+    "x509_props": {
+      "subject": "CN=Wenco IoT Device Signing Root, O=Wenco International Mining Systems, L=Richmond, ST=BC, C=CA",
+      "key_usage": [
+        "digitalSignature",
+        "keyCertSign",
+        "cRLSign"
+      ],
+      "basic_constraints": {
+        "ca": true
+      },
+      "validity_months": 240
+    },
+    "issuer": {
+      "name": "Self"
+    }
+  }
+}

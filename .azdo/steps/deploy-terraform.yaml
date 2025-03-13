@@ -1,0 +1,64 @@
+# Deploys the terraform infrastructure on QA, UAT, Prod environments
+# Re-usable template for QA, UAT, Prod environments
+# Note that Terraform remote state requires input variables to the 
+# initialization step specifying the configuration of the remote azurerm backend.
+# remote state files are stored in storage account
+parameters:
+  environmentServiceName: ''
+  remoteStateContainerName: ''
+  remoteStateFileName: ''
+  remoteStateResourceGroup: ''
+  remoteStateServiceConnection: ''
+  remoteStateStorageName: ''
+  terraformCommandOptions: ''
+  workingDirectory: ''
+  shouldRunAzLogin: 'false'
+
+steps:
+  - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+    displayName: 'Install Latest Terraform Version'
+    inputs:
+      terraformVersion: 'latest'
+
+  - script: 'az extension add --name azure-iot'
+    displayName: 'Install Az-IoT extension'
+    
+  - task: TerraformCLI@0
+    displayName: 'Terraform Init'
+    inputs:
+      command: init
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      backendType: 'azurerm'
+      backendServiceArm: '${{ parameters.remoteStateServiceConnection }}'
+      backendAzureRmResourceGroupName: '${{ parameters.remoteStateResourceGroup }}'
+      backendAzureRmStorageAccountName: '${{ parameters.remoteStateStorageName }}'
+      backendAzureRmContainerName: '${{ parameters.remoteStateContainerName }}'
+      backendAzureRmKey: '${{ parameters.remoteStateFileName }}'
+  
+  - task: TerraformCLI@0
+    displayName: 'Terraform Plan'
+    inputs:
+      command: 'plan'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      environmentServiceName: '${{ parameters.environmentServiceName }}' 
+      commandOptions: '${{ parameters.terraformCommandOptions }}'
+      runAzLogin: ${{ eq(parameters.shouldRunAzLogin, 'true') }}
+      publishPlanResults: 'terraform-plan'
+  
+
+  - task: TerraformCLI@0
+    displayName: 'Terraform Apply'
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main','refs/heads/develop'))
+    inputs:
+      command: 'apply'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      environmentServiceName: '${{ parameters.environmentServiceName }}'
+      commandOptions: '${{ parameters.terraformCommandOptions }}'
+      runAzLogin: ${{ eq(parameters.shouldRunAzLogin, 'yes') }}
+
+  - task: TerraformCLI@0
+    displayName: 'Set Environment Variables from Terraform Outputs'
+    inputs:
+      command: 'output'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      environmentServiceName: '${{ parameters.environmentServiceName }}'

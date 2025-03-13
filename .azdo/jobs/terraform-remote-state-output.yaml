@@ -1,0 +1,25 @@
+# Re-usable pipeline job to deploy Infrastructure
+parameters:
+  environmentServiceName: ''
+  remoteStateContainerName: ''
+  remoteStateFileNameEnv: ''
+  remoteStateResourceGroup: ''
+  remoteStateServiceConnection: ''
+  remoteStateStorageName: ''
+  terraformWorkingDirectory: ''
+
+jobs:
+  - job: terraform_remote_state
+    timeoutInMinutes: 0
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - template: /.azdo/steps/terraform-remote-state-output.yaml
+        parameters:
+          environmentServiceName: '${{ parameters.environmentServiceName }}'
+          remoteStateContainerName: '${{ parameters.remoteStateContainerName }}'
+          remoteStateFileName: '${{ parameters.remoteStateFileNameEnv }}'
+          remoteStateResourceGroup: '${{ parameters.remoteStateResourceGroup }}'
+          remoteStateServiceConnection: '${{ parameters.remoteStateServiceConnection }}'
+          remoteStateStorageName: '${{ parameters.remoteStateStorageName }}'
+          terraformWorkingDirectory: '${{ parameters.terraformWorkingDirectory }}'

@@ -1,0 +1,39 @@
+# Sets up a new enrollment group, using the specified root CA certificate from Key Vault
+
+parameters:
+  azureServiceConnection: ''
+  allocationFunctionResourceGroup: ''
+  caCertificatePath: ''
+  certificateName: ''
+  dpsName: ''
+  enrollmentId: ''
+  functionAppName: ''
+  functionName: ''
+  iotHubName: ''
+  keyVaultName: ''
+  resourceGroup: ''
+  verificationDirectory: ''
+
+
+jobs:
+  - job: setup_enrollment_group
+    dependsOn: create_signing_cert
+    displayName: 'Setup Enrollment Group in DPS'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      # Create DPS enrollment group using root CA public cert
+      - template: '/.azdo/steps/setup-enrollment-group.yaml'
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          allocationFunctionResourceGroup: '${{ parameters.allocationFunctionResourceGroup }}'
+          caCertificatePath: '${{ parameters.caCertificatePath }}'
+          certificateName: '${{ parameters.certificateName }}'
+          dpsName: '${{ parameters.dpsName }}'
+          enrollmentId: '${{ parameters.enrollmentId }}'
+          functionAppName: '${{ parameters.functionAppName }}'
+          functionName: '${{ parameters.functionName }}'
+          iotHubName: '${{ parameters.iotHubName }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'
+          resourceGroup: '${{ parameters.resourceGroup }}'
+          verificationDirectory: '${{ parameters.verificationDirectory }}'

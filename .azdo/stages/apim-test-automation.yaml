@@ -1,0 +1,13 @@
+parameters:
+  azureServiceConnection: ''
+  keyVaultName: ''
+
+
+stages:
+  - stage:
+    displayName: "Run APIM test automation"
+    jobs:
+      - template: /.azdo/jobs/run-apim-tests.yaml
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'

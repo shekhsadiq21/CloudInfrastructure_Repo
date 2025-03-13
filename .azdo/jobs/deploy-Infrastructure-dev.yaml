@@ -1,0 +1,30 @@
+# Re-usable pipeline job to deploy Infrastructure on development environments
+parameters:
+  environmentServiceName: ''
+  remoteStateContainerName: ''
+  remoteStateFileName: ''
+  remoteStateResourceGroup: ''
+  remoteStateServiceConnection: ''
+  remoteStateStorageName: ''
+  shouldRunAzLogin: ''
+  terraformCommandOptions: ''
+  terraformWorkingDirectory: ''
+
+jobs:
+  - job: deploy_infrastructure
+    #dependsOn: terraform_remote_state
+    timeoutInMinutes: 0
+    pool:
+      name: WencoCloudAgentPools
+    steps: 
+      - template: /.azdo/steps/deploy-terraform-dev.yaml
+        parameters:
+          environmentServiceName: '${{ parameters.environmentServiceName }}'
+          remoteStateContainerName: '${{ parameters.remoteStateContainerName }}'
+          remoteStateFileName: '${{ parameters.remoteStateFileName }}'
+          remoteStateResourceGroup: '${{ parameters.remoteStateResourceGroup }}'
+          remoteStateServiceConnection: '${{ parameters.remoteStateServiceConnection }}'
+          remoteStateStorageName: '${{ parameters.remoteStateStorageName }}'
+          shouldRunAzLogin: '${{ parameters.shouldRunAzLogin }}'
+          terraformCommandOptions: '${{ parameters.terraformCommandOptions }}'
+          workingDirectory: '${{ parameters.terraformWorkingDirectory }}'

@@ -1,0 +1,64 @@
+# manually run the pipeline which helps creating certificates ("WencoIotDeviceSigningRoot" & "InternalRequestSigningCertificate") in keyVault & Update the certificate in dps & Create DPS enrollment group using root CA cert
+# Variables that need to be updated when you create a new environment:
+# AZURE_SERVICE_CONNECTION
+# RESOURCE_GROUP_NAME
+# FUNCTION_NAME
+# DPS_NAME
+# IOTHUB_NAME
+# ALLOCATION_FUNCTION_RG
+
+
+trigger: none
+
+name: 0.0.$(rev:r) 
+
+variables:
+  - name: AZURE_SERVICE_CONNECTION
+    value: 'wen-uat-sp'
+  - name: CERTIFICATE_CREATION_SCRIPT_DIRECTORY
+    value: '$(System.DefaultWorkingDirectory)/src/CertificateCreation'
+  - name: CERTIFICATE_NAME
+    value: 'WencoIotDeviceSigningRoot'
+  - name: INTERNAL_REQUEST_CERTIFICATE_NAME
+    value: 'InternalRequestSigningCertificate'
+  - name: KEYVAULT_NAME
+    value: 'wcp-uat-cus-sh-kv'
+  - name: CA_CERTIFICATION_PATH
+    value: '$(System.DefaultWorkingDirectory)/WencoIotDeviceSigningRoot.pem'
+  - name: ENROLLMENT_ID
+    value: 'wencoEnrollmentGroup'
+  - name: VERIFICATION_DIRECTORY
+    value: '$(System.DefaultWorkingDirectory)/src/CertificateCreation'
+  - name: DPS_NAME
+    value: 'wcp-uat-cus-dps'
+  - name: FUNCTION_APP_NAME
+    value: 'wcp-uat-cus-dpsallocationfunction-func'
+  - name: IOTHUB_NAME
+    value: 'wcp-uat-cus-iot'
+  - name: RESOURCE_GROUP_NAME
+    value: 'wcp-uat-cus-iotcomponents-rg'
+  - name: FUNCTION_NAME
+    value: 'deviceallocationfunction'
+  - name: ALLOCATION_FUNCTION_RG
+    value: 'wcp-uat-cus-backendservices-rg'
+  - name: ENVIRONMENT_NAME
+    value: 'uat'
+
+stages:
+  - template: /.azdo/stages/setup-environment.yaml
+    parameters:
+      azureServiceConnection: '${{ variables.AZURE_SERVICE_CONNECTION }}'
+      allocationFunctionResourceGroup: '${{ variables.ALLOCATION_FUNCTION_RG }}'
+      caCertificatePath: '${{ variables.CA_CERTIFICATION_PATH }}'
+      certificateCreationScriptDirectory: '${{ variables.CERTIFICATE_CREATION_SCRIPT_DIRECTORY }}'
+      certificateName: '${{ variables.CERTIFICATE_NAME }}'
+      internalRequestCertificateName : '${{ variables.INTERNAL_REQUEST_CERTIFICATE_NAME }}'
+      dpsName: '${{ variables.DPS_NAME }}'
+      enrollmentId: '${{ variables.ENROLLMENT_ID }}'
+      environmentName: '${{ variables.ENVIRONMENT_NAME }}'
+      functionAppName: '${{ variables.FUNCTION_APP_NAME }}'
+      functionName: '${{ variables.FUNCTION_NAME }}'
+      iotHubName: '${{ variables.IOTHUB_NAME }}'
+      keyVaultName: '${{ variables.KEYVAULT_NAME }}'
+      resourceGroup: '${{ variables.RESOURCE_GROUP_NAME }}'
+      verificationDirectory: '${{ variables.VERIFICATION_DIRECTORY }}'

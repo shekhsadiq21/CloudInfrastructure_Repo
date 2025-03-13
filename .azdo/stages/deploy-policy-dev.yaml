@@ -1,0 +1,40 @@
+
+parameters:
+  dependsOnEnvironment: ''
+  environmentName: ''
+  environmentServiceName: ''
+  remoteStateContainerName: ''
+  remoteStateResourceGroup: ''
+  remoteStateServiceConnection: ''
+  remoteStateStorageName: ''
+  terraformWorkingDirectory: ''
+  terraformCommandOptions: ''
+
+
+stages:
+  - stage: deploy_${{ parameters.environmentName }}_policies
+    dependsOn:
+      - ${{ if ne(parameters.dependsOnEnvironment, '') }}:
+        - deploy_${{ parameters.dependsOnEnvironment }}_policies
+    displayName: 'Deploy ${{ parameters.environmentName }} policies'
+    pool:
+      vmImage: 'ubuntu-latest'
+    jobs:            
+      
+      # required approvals
+      - template: /.azdo/jobs/waiting-for-approval.yaml
+        parameters:
+          environmentName: '${{ parameters.environmentName }}'
+
+      - template: /.azdo/jobs/deploy-Infrastructure-dev.yaml
+        parameters:
+          environmentName: '${{ parameters.environmentName }}'
+          environmentServiceName: '${{ parameters.environmentServiceName }}'
+          remoteStateContainerName: '${{ parameters.remoteStateContainerName }}'
+          remoteStateFileName: 'policy-${{ parameters.environmentName }}.tfstate'
+          remoteStateResourceGroup: '${{ parameters.remoteStateResourceGroup }}'
+          remoteStateServiceConnection: '${{ parameters.remoteStateServiceConnection }}'
+          remoteStateStorageName: '${{ parameters.remoteStateStorageName }}'
+          terraformCommandOptions: '${{ parameters.terraformCommandOptions }}'
+          terraformWorkingDirectory: '${{ parameters.terraformWorkingDirectory }}'
+          terraformPublishPlanResults: 'terraform-plan-${{ parameters.environmentName }}'

@@ -1,0 +1,17 @@
+# Calling this deployment job at the beginning of a stage will allow approval checks for that stage
+
+parameters:
+  environmentName: ''
+
+jobs:
+  - deployment: pending_approval
+    displayName: 'Pending Approval'
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'AzureManagement_policy_${{ parameters.environmentName }}'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - script: 'echo approved'
+              displayName: "waiting on approval"

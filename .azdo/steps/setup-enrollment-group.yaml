@@ -1,0 +1,86 @@
+# Creates a new enrollment group using a root CA certificate from Key Vault, including ownership verification. Private key is downloaded from Key Vault, but never written to disk.
+
+parameters:
+  azureServiceConnection: ''
+  allocationFunctionResourceGroup: ''
+  caCertificatePath: ''
+  certificateName: ''
+  dpsName: ''
+  enrollmentId: ''
+  functionAppName: ''
+  functionName: ''
+  iotHubName: ''
+  keyVaultName: ''
+  resourceGroup: ''
+  verificationDirectory: ''
+
+
+steps:
+
+  - task: AzureCLI@2
+    displayName: 'Download the certificate from KeyVault'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: inlineScript
+      inlineScript: |
+        az keyvault certificate download --vault-name "${{ parameters.keyVaultName }}" -n "${{ parameters.certificateName }}" -f "${{ parameters.caCertificatePath }}"
+
+
+  - task: AzureCLI@2
+    displayName: 'Upload Certificate in DPS'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -e
+        tempEtag=$(az iot dps certificate create --dps-name "${{ parameters.dpsName }}" --resource-group "${{ parameters.resourceGroup }}" --name "${{ parameters.certificateName }}" --path "${{ parameters.caCertificatePath }}" --query 'etag' -o tsv)
+        result=$(az iot dps certificate generate-verification-code --dps-name "${{ parameters.dpsName }}" --resource-group "${{ parameters.resourceGroup }}" --name '${{ parameters.certificateName }}' --etag $tempEtag)
+        etag=$(jq '.etag' <<< $result)
+        verificationCode=$(jq '.properties.verificationCode' <<< $result)
+        echo "##vso[task.setvariable variable=verificationCode]$verificationCode"
+        echo "##vso[task.setvariable variable=etag]$etag"
+
+  - task: AzureCLI@2
+    displayName: 'create verification certificate'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      workingDirectory: '${{ parameters.verificationDirectory }}'
+      scriptLocation: 'scriptPath'
+      scriptPath: '${{ parameters.verificationDirectory }}/createVerificationCertificate.sh'
+      arguments: '"$(verificationCode)" "${{ parameters.keyVaultName }}" "${{ parameters.certificateName }}"'
+
+  # Upload the verification certificate to DPS
+  - task: AzureCLI@2
+    displayName: 'Verify certificate with DPS'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: inlineScript
+      inlineScript: |
+        az iot dps certificate verify --dps-name "${{ parameters.dpsName }}" --resource-group "${{ parameters.resourceGroup }}" --name '${{ parameters.certificateName }}' --path "${{ parameters.verificationDirectory }}/$(verificationCode).cert.pem" --etag $(etag)
+
+
+  # Configure new Enrollment Group in DPS
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: inlineScript
+      inlineScript: |
+        masterKey=$(az functionapp keys list -g ${{ parameters.allocationFunctionResourceGroup }} -n ${{ parameters.functionAppName }} --query masterKey -o tsv)
+        az extension add --name azure-iot
+        az iot dps enrollment-group create \
+          -g "${{ parameters.resourceGroup }}" \
+          --dps-name "${{ parameters.dpsName }}" \
+          --enrollment-id ${{ parameters.enrollmentId }} \
+          --allocation-policy custom \
+          --webhook-url "https://${{ parameters.functionAppName }}.azurewebsites.net/api/${{ parameters.functionName }}?code=$masterKey" \
+          --api-version "2018-09-01-preview" \
+          --ca-name '${{ parameters.certificateName }}' \
+          --edge-enabled true \
+          --iot-hubs "${{ parameters.iotHubName }}.azure-devices.net" \
+          --reprovision-policy "never"
+    displayName: 'Create DPS Enrollment Group'

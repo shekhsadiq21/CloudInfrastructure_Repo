@@ -1,0 +1,30 @@
+parameters:
+  azureServiceConnection: ''
+  certificateCreationScriptDirectory: ''
+  certificateName: ''
+  internalRequestCertificateName: ''
+  keyVaultName: ''
+
+jobs:
+  - job: create_signing_cert
+    displayName: 'Create Signing Certs in KeyVault'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      # Create the root CA directly in key vault for IOT devices. 
+      - template: '/.azdo/steps/create-kv-signing-certificate.yaml'
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          certificateName: '${{ parameters.certificateName }}'
+          certificateCreationScriptDirectory: '${{ parameters.certificateCreationScriptDirectory }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'
+          certificateConfig: 'iot-signing-root-cert-config'
+      # Create internal request certificate in Keyvault
+      - template: '/.azdo/steps/create-kv-signing-certificate.yaml'
+        parameters:
+          azureServiceConnection: '${{ parameters.azureServiceConnection }}'
+          certificateName: '${{ parameters.internalRequestCertificateName }}'
+          certificateCreationScriptDirectory: '${{ parameters.certificateCreationScriptDirectory }}'
+          keyVaultName: '${{ parameters.keyVaultName }}'
+          certificateConfig: 'internal-signing-cert-config'
+

@@ -1,0 +1,55 @@
+<policies>
+	<inbound>
+		<choose>
+			<!-- If there is an authorization header. Then it must be validated as JWT -->
+			<when condition="@(context.Request.Headers.ContainsKey("Authorization"))">
+				<!-- Validate that a JWT has been sent with the request -->
+				<validate-jwt header-name="Authorization" failed-validation-httpcode="401" output-token-variable-name="jwt">
+					<openid-config url="AUTH0_TENANT_URL/.well-known/openid-configuration"/>
+                    <required-claims>
+						<claim name="https://www.wencomine.com/claims/user" match="any" />
+					</required-claims>
+				</validate-jwt>
+				<!-- Take the claim of User Id. And set it to the header of x-wenco-user-id -->
+				<set-header name="x-wenco-user-id" exists-action="override">
+					<value>@{return ((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("https://www.wencomine.com/claims/user", "");}</value>
+				</set-header>
+
+                <!-- Set up the UserCompanyRoles header -->
+                <set-header name="x-wenco-usercompanyroles" exists-action="override">
+					<value>@{return ((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("https://www.wencomine.com/claims/companyroles", "");}</value>
+				</set-header>
+				<!-- Wipe the header for Authorization -->
+				<set-header name="Authorization" exists-action="override">
+					<value />
+				</set-header>
+				<!-- Ensure that a user *cannot* specify this is a machine to machine request -->
+                <set-header name="x-wenco-machinetomachine" exists-action="override">
+					<value />
+				</set-header>
+                <!-- Putting Old Wenco Authorization header back into Authorization so services still work. Mainly for test automation-->
+                <set-header name="Authorization" exists-action="override">
+                    <value>@{return context.Request.Headers.GetValueOrDefault("x-wenco-token","");}</value>
+                </set-header>
+			</when>
+			<!-- Otherwise validate using a certificate -->
+			<otherwise>
+				<!--<choose>
+					<when condition="@(context.Request.Certificate == null || !context.Request.Certificate.Verify()  || !context.Deployment.Certificates.Any(c => c.Value.Thumbprint == context.Request.Certificate.Thumbprint))"> -->
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                </return-response>
+				<!--</when>
+				</choose> -->
+                <!-- We are validating via Certificate to this is machine to machine -->
+				<!-- Skipping Certificate rules for now since machine to machine validation not implemented
+                <set-header name="x-wenco-machinetomachine" exists-action="override">
+					<value>true</value>
+				</set-header> -->
+			</otherwise>
+		</choose>
+	</inbound>
+    <backend>
+        <forward-request />
+    </backend>
+</policies>

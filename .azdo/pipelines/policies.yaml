@@ -1,0 +1,92 @@
+# pipeline updates Azure custom policies to WencoR&D tenant
+
+name: 0.0.$(rev:r) 
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: TERRAFORM_WORKING_DIR
+    value: '$(System.DefaultWorkingDirectory)/AzurePolicy/Policies'  
+  - name: TERRAFORM_SERVICE_CONNECTION_NONPROD
+    value: 'wen-non-prod-sp'
+  - name: TERRAFORM_SERVICE_CONNECTION_PROD
+    value: 'wen-prod-sp'
+  - name: REMOTE_STATE_SERVICE_CONNECTION
+    value: 'wen-gov-terraform-sp'
+  - name: REMOTE_STATE_RESOURCE_GROUP
+    value: 'wen-gov-wus2-terraform-rg'
+  - name: REMOTE_STATE_STORAGE_NAME
+    value: 'wengovwus2terraformtf'
+  - name: REMOTE_STATE_CONTAINER_NAME
+    value: 'wencocloud-management'
+
+stages:
+ # dev
+  - template: /.azdo/stages/deploy-policy-dev.yaml
+    parameters:
+      environmentName: 'dev' # varies on subscription
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_NONPROD }}'
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="dev.tfvars"
+
+# qa 
+  - template: /.azdo/stages/deploy-policy.yaml
+    parameters:
+      dependsOnEnvironment: 'dev'
+      environmentName: 'qa' # varies on subscription
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_NONPROD }}'
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="qa.tfvars"
+
+# staging 
+  - template: /.azdo/stages/deploy-policy.yaml
+    parameters:
+      dependsOnEnvironment: 'qa'
+      environmentName: 'stage' # varies on subscription
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_PROD }}'
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="stage.tfvars"
+
+# governance 
+  - template: /.azdo/stages/deploy-policy.yaml
+    parameters:
+      dependsOnEnvironment: 'stage'
+      environmentName: 'gov' # varies on subscription
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_PROD }}'
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="gov.tfvars"
+
+# prod 
+  - template: /.azdo/stages/deploy-policy.yaml
+    parameters:
+      dependsOnEnvironment: 'gov'
+      environmentName: 'prod' # varies on subscription
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_PROD }}'
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="prod.tfvars"

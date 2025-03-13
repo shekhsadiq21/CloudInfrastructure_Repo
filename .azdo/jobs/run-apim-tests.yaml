@@ -1,0 +1,100 @@
+parameters:
+  azureServiceConnection: ''
+  keyVaultName: ''
+
+jobs:
+  - job: apim_test_automation
+    timeoutInMinutes: 0
+    pool:
+      name: WencoCloudAgentPools
+    steps: 
+      - task: AzureKeyVault@2
+        inputs: 
+          connectedServiceName: '${{ parameters.azureServiceConnection }}'
+          KeyVaultName: '${{ parameters.keyVaultName }}'
+          SecretsFilter: 'Apim-gateway-url,Apim-testing-subscription-key,Auth0-Automation-ClientId,Auth0-Automation-ClientSecret,Auth0-TenantUrl,Testing-frontend-username,Testing-frontend-password'
+          RunAsPreJob: true
+
+      - task: DownloadBuildArtifacts@0
+        inputs:
+          buildType: 'specific'
+          # WencoCloud/WencoCloud-IntegrationTests
+          project: 'e146c15a-66dc-4760-9361-6faa4687e560'
+          pipeline: '496'
+          buildVersionToDownload: 'latestFromBranch'
+          branchName: 'refs/heads/develop'
+          artifactName: 'RL-BI-CloudAutomatedTests-Windows'
+          downloadPath: '$(System.ArtifactsDirectory)'
+        displayName: 'Download Test project'
+
+      # If the build is triggered by a PR, wait up to 20 min for a Run of the CloudInfrastucture-Dev pipeline to complete successfully
+      # If no CloudInfrastucture-Dev build is in progress, check if the latest succesful PR build is newer than 30min old
+      # If not, wait 5 min to see if the build still needs to be triggered. 
+      # If build is not triggered by PR, $(System.PullRequest.PullRequestId) will be empty, and this task will do nothing
+      - powershell: |
+          $token = "Bearer $env:ACCESS_TOKEN"
+          $prId = $env:PR_ID
+          Write-Output "Searching for PR ID: $prId"
+          $timeWaited = 0
+          $url = "https://dev.azure.com/wencorepo/WencoCloud/_apis/pipelines/749/runs?api-version=7.1-preview.1"
+          $now = Get-Date
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+          while ($timeWaited -lt 20 -and $prId -ne '$(System.PullRequest.PullRequestId)')
+          {
+            $response = Invoke-RestMethod -Uri "$url" -Headers @{Authorization = $token}
+            Write-Output "Azure Devops API response:"
+            $response.value
+            $filtered = $response.value | Where-Object {$_.variables.'system.pullRequest.pullRequestId'.value -eq $prId} 
+            
+            if ($filtered[0].state -eq "inProgress")
+            {
+              Write-Output "Latest PR Terraform deployment in progress. Sleeping 5 min..."
+              Start-Sleep -Seconds 300
+              $timeWaited += 5 
+            }
+
+            elseif ($timeWaited -eq 0) 
+            {
+              $buildComplete = $filtered | Where-Object {$_.result -eq "succeeded"}
+              $latestBuild = Get-Date $buildComplete[0].finishedDate
+              $buildAge = ($now - $latestBuild).TotalMinutes
+              
+              Write-Output "Most recent successful build is $buildAge minutes old"
+              if ($buildComplete -and $buildAge -lt 30 )
+              { 
+                Write-Output "Found completed terraform DEV pipeline. Stopping sleep."
+                break
+              }
+              else
+              {
+                Write-Output "Latest successful build too old. Sleeping 5 min in case build is not triggered yet..."
+                Start-Sleep -Seconds 300
+                $timeWaited += 5
+              }
+            }
+            
+            else
+            {
+              break
+            }
+          }
+        env:
+          ACCESS_TOKEN: $(System.AccessToken)
+          PR_ID: $(System.PullRequest.PullRequestId)
+        displayName: "Wait for Terraform Dev deployment"
+      
+      # Note that tests run here will execute against whatever is deployed in Dev environment
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: test
+          arguments: --filter Category=APIM
+          projects: '$(System.ArtifactsDirectory)/RL-BI-CloudAutomatedTests-Windows/CloudAutomatedTests.dll'
+        env:
+          APIM_BASE_URI: $(Apim-gateway-url)
+          APIM_SUBSCRIPTION_KEY: $(Apim-testing-subscription-key)
+          AUTH0_AUTOMATION_CLIENT_ID: $(Auth0-Automation-ClientId)
+          AUTH0_AUTOMATION_CLIENT_SECRET: $(Auth0-Automation-ClientSecret)
+          AUTH0_BASE_URL: $(Auth0-TenantUrl)
+          TEST_USERNAME: $(Testing-frontend-username)
+          TEST_PASSWORD: $(Testing-frontend-password)
+        displayName: "Run APIM test project"

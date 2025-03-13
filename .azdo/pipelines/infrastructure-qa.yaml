@@ -1,0 +1,53 @@
+# CI pipeline deploys the common Infrastructure for all environments dev>qa>....prod
+# Runs on merge to master branches
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+ 
+  # paths:
+  #   include: tbd
+
+
+name: 0.0.$(rev:r) 
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'wcp-acr-credentials'
+  - name: TERRAFORM_WORKING_DIR
+    value: '$(System.DefaultWorkingDirectory)/Environments'  
+  - name: TERRAFORM_SERVICE_CONNECTION_QA
+    value: 'wen-qa-sp'
+  - name: REMOTE_STATE_SERVICE_CONNECTION
+    value: 'wen-gov-terraform-sp'
+  - name: REMOTE_STATE_RESOURCE_GROUP
+    value: 'wen-gov-wus2-terraform-rg'
+  - name: REMOTE_STATE_STORAGE_NAME
+    value: 'wengovwus2terraformtf'
+  - name: REMOTE_STATE_CONTAINER_NAME
+    value: 'wencocloud-infrastructure'
+  - name: SHOULD_RUN_AZ_LOGIN
+    value: 'true'
+
+
+stages:
+  # deploy 'QA' infrastructure
+  - template: /.azdo/stages/Environment.yaml
+    parameters:
+      environmentName: 'qa' # varies on environment
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_QA }}' # varies on environment
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      shouldRunAzLogin: '${{ variables.SHOULD_RUN_AZ_LOGIN }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="qa.tfvars"
+            -var acr_login_server="$(TF-OUT-ACR-LOGIN-SERVER)"
+            -var acr_username="$(TF-OUT-ACR-NAME)"
+            -var acr_password="$(TF-OUT-SECRET-ACR-ADMIN-PASSWORD)"

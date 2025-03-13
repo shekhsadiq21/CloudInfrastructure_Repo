@@ -1,0 +1,20 @@
+# Creates a new root CA signing certificate directly in Key Vault, and deletes its own access policy when done
+
+parameters:
+  azureServiceConnection: ''
+  certificateCreationScriptDirectory: ''
+  certificateName: ''
+  keyVaultName: ''
+  certificateConfig: ''
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Create Signing Cert in KV'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: inlineScript
+      workingDirectory: '${{ parameters.certificateCreationScriptDirectory }}'
+      inlineScript: |
+        chmod 755 create-cert.sh
+        ./create-cert.sh "${{ parameters.keyVaultName }}" "${{ parameters.certificateName }}" "${{ parameters.certificateConfig }}"

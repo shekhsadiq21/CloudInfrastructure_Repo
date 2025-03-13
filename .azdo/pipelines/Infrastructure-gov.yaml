@@ -1,0 +1,51 @@
+# CI pipeline deploys the governance Infrastructure
+# Runs on merge to master branches
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+ 
+  paths:
+    include:
+    - Governance\*
+    - /.azdo/pipelines/Infrastructure-gov.yaml
+
+
+name: 0.0.$(rev:r) 
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: TERRAFORM_WORKING_DIR
+    value: '$(System.DefaultWorkingDirectory)/Governance'  
+  - name: TERRAFORM_SERVICE_CONNECTION_GOV
+    value: 'wen-gov-sp'
+  - name: REMOTE_STATE_SERVICE_CONNECTION
+    value: 'wen-gov-terraform-sp'
+  - name: REMOTE_STATE_RESOURCE_GROUP
+    value: 'wen-gov-wus2-terraform-rg'
+  - name: REMOTE_STATE_STORAGE_NAME
+    value: 'wengovwus2terraformtf'
+  - name: REMOTE_STATE_CONTAINER_NAME
+    value: 'wencocloud-infrastructure'
+  - name: SHOULD_RUN_AZ_LOGIN
+    value: 'false'
+
+
+stages:
+  # deploy 'gov' infrastructure
+  - template: /.azdo/stages/Environment.yaml
+    parameters:
+      environmentName: 'gov' # varies on environment
+      environmentServiceName: '${{ variables.TERRAFORM_SERVICE_CONNECTION_GOV }}' # varies on environment
+      remoteStateContainerName: '${{ variables.REMOTE_STATE_CONTAINER_NAME }}'
+      remoteStateResourceGroup: '${{ variables.REMOTE_STATE_RESOURCE_GROUP }}'
+      remoteStateServiceConnection: '${{ variables.REMOTE_STATE_SERVICE_CONNECTION }}'
+      remoteStateStorageName: '${{ variables.REMOTE_STATE_STORAGE_NAME }}'
+      shouldRunAzLogin: '${{ variables.SHOULD_RUN_AZ_LOGIN }}'
+      terraformWorkingDirectory: '${{ variables.TERRAFORM_WORKING_DIR }}'
+      terraformCommandOptions: >
+            -var-file="governance.tfvars"
